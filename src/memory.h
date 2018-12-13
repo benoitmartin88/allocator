@@ -15,11 +15,11 @@
 
 namespace root88 {
 namespace memory {
-    static constexpr std::size_t DEFAULT_BLOCK_SIZE = 4096;
+    static constexpr std::size_t DEFAULT_BLOCK_SIZE = 4096 * 1024;  // 4194304Ko == 4Mo
 
 
 template <typename _T>
-class LinearAllocator {
+class StaticBlockAllocator {
 public:
     typedef _T value_type;
     typedef size_t size_type;
@@ -29,29 +29,29 @@ public:
     typedef _T& reference;
     typedef const _T& const_reference;
 
-    LinearAllocator(const std::size_t size=DEFAULT_BLOCK_SIZE) : size(size), ptr(new _T[size]), offset(ptr.get())
+    StaticBlockAllocator(const std::size_t size=DEFAULT_BLOCK_SIZE) : size(size), ptr(new _T[size]), offset(ptr.get())
 #ifndef NDEBUG
             , debugAllocatedSize(0)
 #endif
     {
 #ifndef NDEBUG
-        std::cout << "LinearAllocator::LinearAllocator()" << std::endl;
+        std::cout << "StaticBlockAllocator::StaticBlockAllocator(size=" << size << ")" << std::endl;
 #endif
     }
 
-    LinearAllocator(const LinearAllocator& linearAllocator) : LinearAllocator(linearAllocator.size) {
+    StaticBlockAllocator(const StaticBlockAllocator& linearAllocator) : StaticBlockAllocator(linearAllocator.size) {
     }
 
-    LinearAllocator(LinearAllocator&&) = delete;
+    StaticBlockAllocator(StaticBlockAllocator&&) = delete;
 
-    ~LinearAllocator() noexcept {
-        ptr.reset(nullptr);
+    ~StaticBlockAllocator() noexcept {
+        ptr.reset();
     };
 
 
-    pointer allocate(size_type n, LinearAllocator<_T>::const_pointer hint=nullptr) {
+    pointer allocate(size_type n, StaticBlockAllocator<_T>::const_pointer hint=nullptr) {
 #ifndef NDEBUG
-        std::cout << "LinearAllocator::allocate(" << n << ", " << hint << ")" << std::endl;
+        std::cout << "StaticBlockAllocator::allocate(" << n << ", " << hint << ")" << std::endl;
 #endif
         if(offset+n > ptr.get()+size) {
             throw std::bad_alloc();
@@ -67,17 +67,17 @@ public:
 
     void deallocate(pointer p, size_type n) {
 #ifndef NDEBUG
-        std::cout << "LinearAllocator::deallocate(" << p << ", " << n << "): debugAllocatedSize=" << debugAllocatedSize << std::endl;
+        std::cout << "StaticBlockAllocator::deallocate(" << p << ", " << n << "): debugAllocatedSize=" << debugAllocatedSize << std::endl;
 #endif
     }
 
 //    template <class U>
 //    struct rebind {
-//        typedef LinearAllocator<U> other;
+//        typedef StaticBlockAllocator<U> other;
 //    };
 //
 //    template <class U>
-//    LinearAllocator(const LinearAllocator<U>&){
+//    StaticBlockAllocator(const StaticBlockAllocator<U>&){
 //    }
 //
 //    pointer address(reference x) const {return &x;}
@@ -155,7 +155,6 @@ public:
 //        assert(currentBlockOffsetPtr <= memoryBlocks.front().get());
 
         if(currentBlockOffsetPtr+n > currentBlockIt->get() + blockSize) {
-            // should not happen often. This will call new/malloc
 #ifndef NDEBUG
             std::cout << "PoolAllocator::allocate(): n=" << n << std::endl;
 #endif
@@ -167,14 +166,13 @@ public:
 
             // try to use next block
             if(currentBlockIt != memoryBlocks.end() and n <= blockSize) {
-                std::cout << "PoolAllocator::allocate(): next block" << std::endl;
                 ++currentBlockIt;   // next block
                 currentBlockOffsetPtr = currentBlockIt->get();
             } else {
                 // need a new block -> allocate
                 std::size_t size = blockSize; // default size
                 if(n > blockSize) {
-                    // need a bigger block
+                    // need a bigger block (blockSize * n)
                     size = blockSize * static_cast<const std::size_t>(std::ceil(static_cast<float>(n)/blockSize));
                 }
                 allocateNewBlock(size);
@@ -190,7 +188,7 @@ public:
 #ifndef NDEBUG
         std::cout << "PoolAllocator::deallocate(" << p << ", " << n << ")" << std::endl;
 #endif
-        // TODO
+        // TODO: push back to memoryBlocks
     }
 
 

@@ -11,7 +11,7 @@ using namespace root88::memory;
 
 
 template <typename _T, template<typename> class _Allocator>
-void test_std_vector() {
+void testStdVector() {
     static constexpr uint8_t SIZE = 8;
 
     auto v = std::vector<_T, _Allocator<_T>>(SIZE, 42);
@@ -21,7 +21,7 @@ void test_std_vector() {
 }
 
 template <typename _T, template<typename> class _Allocator>
-static void test_std_vector_emplace_back() {
+static void testStdVectorEmplaceBack() {
     static constexpr size_t SIZE = 100;
 
     auto v = std::vector<_T, _Allocator<_T>>();
@@ -38,7 +38,7 @@ static void test_std_vector_emplace_back() {
 }
 
 template <typename _T, template<typename> class _Allocator>
-void test_std_vector_bad_alloc() {
+void testStdVectorBadAlloc() {
     static constexpr std::size_t SIZE = 8;
 
     bool caughtException = false;
@@ -62,23 +62,23 @@ void test_std_vector_bad_alloc() {
 /*
  * LINEAR ALLOCATOR
  */
-TEST(linear_allocator, std_vector) {
-    test_std_vector<int, LinearAllocator>();
-    test_std_vector<double, LinearAllocator>();
+TEST(static_block_allocator, std_vector) {
+    testStdVector<int, StaticBlockAllocator>();
+    testStdVector<double, StaticBlockAllocator>();
 }
 
-TEST(linear_allocator, std_vector_emplace_back) {
-    test_std_vector_emplace_back<size_t, LinearAllocator>();
+TEST(static_block_allocator, std_vector_emplace_back) {
+    testStdVectorEmplaceBack<size_t, StaticBlockAllocator>();
 }
 
-TEST(linear_allocator, bad_alloc) {
-    test_std_vector_bad_alloc<int, LinearAllocator>();
+TEST(static_block_allocator, bad_alloc) {
+    testStdVectorBadAlloc<int, StaticBlockAllocator>();
 }
 
-TEST(linear_allocator, new_placement) {
+TEST(static_block_allocator, new_placement) {
     static constexpr uint8_t SIZE = 8;
 
-    root88::memory::LinearAllocator<int> allocator;  // 8 * sizeof(int)
+    root88::memory::StaticBlockAllocator<int> allocator;  // 8 * sizeof(int)
     auto ptr = allocator.allocate(SIZE);
     std::cout << "&ptr=" << ptr << std::endl;
 
@@ -105,11 +105,11 @@ TEST(linear_allocator, new_placement) {
  * POOL ALLOCATOR
  */
 TEST(pool_allocator, std_vector) {
-    test_std_vector<int, PoolAllocator>();
-    test_std_vector<double, PoolAllocator>();
+    testStdVector<int, PoolAllocator>();
+    testStdVector<double, PoolAllocator>();
 }
 
 TEST(pool_allocator, std_vector_emplace_back) {
-    test_std_vector_emplace_back<size_t, PoolAllocator>();
+    testStdVectorEmplaceBack<size_t, PoolAllocator>();
 }
 
