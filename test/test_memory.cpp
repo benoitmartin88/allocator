@@ -80,36 +80,39 @@ TEST(static_block_allocator, new_placement) {
 
     root88::memory::StaticBlockAllocator<int> allocator;  // 8 * sizeof(int)
     auto ptr = allocator.allocate(SIZE);
-    std::cout << "&ptr=" << ptr << std::endl;
+//    std::cout << "&ptr=" << ptr << std::endl;
 
     for(uint8_t i=0; i<SIZE; ++i) {
         int* intPtr = new(ptr+i)(int);
-        std::cout << "&intPtr=" << intPtr << std::endl;
+//        std::cout << "&intPtr=" << intPtr << std::endl;
 
-        *intPtr = i;    // set pointer
+        *intPtr = i;    // set pointer value
 
-        ASSERT_EQ(ptr+i, intPtr);
-        ASSERT_EQ(i, *intPtr);
+        ASSERT_EQ(ptr+i, intPtr);   // check pointer address
+        ASSERT_EQ(i, *intPtr);      // check value
+        ASSERT_EQ(i, *ptr+i);      // check value
     }
 
     int* intPtr = new(ptr)(int[SIZE]);
     for(uint8_t i=0; i<SIZE; ++i) {
-        *intPtr = i;    // set pointer
-        std::cout << "*intPtr=" << *intPtr << std::endl;
-        ASSERT_EQ(ptr+i, intPtr+i);
-        ASSERT_EQ(i, *intPtr);
+        *(intPtr+i) = i;    // set pointer value
+//        std::cout << "*intPtr=" << *(intPtr+i) << std::endl;
+        ASSERT_EQ(ptr+i, intPtr+i);     // check pointer address
+        ASSERT_EQ(i, *(intPtr+i));      // check value
     }
+    
+    allocator.deallocate(ptr, SIZE);    // explicit call to deallocate due to new placement
 }
 
 /*
  * POOL ALLOCATOR
  */
 TEST(pool_allocator, std_vector) {
-    testStdVector<int, PoolAllocator>();
-    testStdVector<double, PoolAllocator>();
+    testStdVector<int, ChainedBlockAllocator>();
+    testStdVector<double, ChainedBlockAllocator>();
 }
 
 TEST(pool_allocator, std_vector_emplace_back) {
-    testStdVectorEmplaceBack<size_t, PoolAllocator>();
+    testStdVectorEmplaceBack<size_t, ChainedBlockAllocator>();
 }
 

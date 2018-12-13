@@ -31,6 +31,6 @@ BENCHMARK_TEMPLATE(benchStdVector, size_t, StaticBlockAllocator)->Range(8, 8<<10
 //BENCHMARK_TEMPLATE(benchStdVector, size_t, std::allocator)->Range(2, 2)->Iterations(1);
 //BENCHMARK_TEMPLATE(benchStdVector, size_t, StaticBlockAllocator)->Range(2, 2)->Iterations(1);
 
-//BENCHMARK_TEMPLATE(benchStdVector, size_t, PoolAllocator)->Range(8, 8<<10);
+//BENCHMARK_TEMPLATE(benchStdVector, size_t, ChainedBlockAllocator)->Range(8, 8<<10);
 
 BENCHMARK_MAIN();

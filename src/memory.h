@@ -15,7 +15,7 @@
 
 namespace root88 {
 namespace memory {
-    static constexpr std::size_t DEFAULT_BLOCK_SIZE = 4096 * 1024;  // 4194304Ko == 4Mo
+    static constexpr std::size_t DEFAULT_BLOCK_SIZE = 4096;  // 4096 * 1024 = 4194304Ko == 4Mo
 
 
 template <typename _T>
@@ -34,9 +34,7 @@ public:
             , debugAllocatedSize(0)
 #endif
     {
-#ifndef NDEBUG
-        std::cout << "StaticBlockAllocator::StaticBlockAllocator(size=" << size << ")" << std::endl;
-#endif
+
     }
 
     StaticBlockAllocator(const StaticBlockAllocator& linearAllocator) : StaticBlockAllocator(linearAllocator.size) {
@@ -45,13 +43,17 @@ public:
     StaticBlockAllocator(StaticBlockAllocator&&) = delete;
 
     ~StaticBlockAllocator() noexcept {
+#ifndef NDEBUG
+        std::cout << "StaticBlockAllocator::~StaticBlockAllocator(): debugAllocatedSize=" << debugAllocatedSize << std::endl;
+#endif
         ptr.reset();
+        assert(debugAllocatedSize==0);    // TODO
     };
 
 
     pointer allocate(size_type n, StaticBlockAllocator<_T>::const_pointer hint=nullptr) {
 #ifndef NDEBUG
-        std::cout << "StaticBlockAllocator::allocate(" << n << ", " << hint << ")" << std::endl;
+        std::cout << "StaticBlockAllocator::allocate(n=" << n << ", hint=" << hint << ")" << std::endl;
 #endif
         if(offset+n > ptr.get()+size) {
             throw std::bad_alloc();
@@ -67,7 +69,8 @@ public:
 
     void deallocate(pointer p, size_type n) {
 #ifndef NDEBUG
-        std::cout << "StaticBlockAllocator::deallocate(" << p << ", " << n << "): debugAllocatedSize=" << debugAllocatedSize << std::endl;
+        debugAllocatedSize -= n;
+        std::cout << "StaticBlockAllocator::deallocate(p=" << p << ", n=" << n << "): debugAllocatedSize=" << debugAllocatedSize << std::endl;
 #endif
     }
 
@@ -108,7 +111,7 @@ private:
 
 
 template <typename _T>
-class PoolAllocator {
+class ChainedBlockAllocator {
 public:
     typedef _T value_type;
     typedef size_t size_type;
@@ -119,12 +122,12 @@ public:
     typedef const _T& const_reference;
 
 
-    PoolAllocator(const uint64_t initialNumberOfBlocks=2, const std::size_t blockSize=DEFAULT_BLOCK_SIZE)
+    ChainedBlockAllocator(const uint64_t initialNumberOfBlocks=2, const std::size_t blockSize=DEFAULT_BLOCK_SIZE)
             : initialNumberOfChunks(initialNumberOfBlocks), blockSize(blockSize),
             memoryBlocks(initialNumberOfBlocks), currentBlockIt(memoryBlocks.before_begin()),
             currentBlockOffsetPtr(nullptr) {
 #ifndef NDEBUG
-        std::cout << "PoolAllocator::PoolAllocator(initialNumberOfBlocks=" << initialNumberOfBlocks << ")" << std::endl;
+        std::cout << "ChainedBlockAllocator::ChainedBlockAllocator(initialNumberOfBlocks=" << initialNumberOfBlocks << ")" << std::endl;
 #endif
 
         for(uint64_t i=0; i<initialNumberOfBlocks; ++i) {
@@ -133,30 +136,30 @@ public:
         currentBlockIt = memoryBlocks.begin();
     }
 
-    PoolAllocator(const PoolAllocator& poolAllocator) : PoolAllocator(poolAllocator.initialNumberOfChunks, poolAllocator.blockSize) {
+    ChainedBlockAllocator(const ChainedBlockAllocator& poolAllocator) : ChainedBlockAllocator(poolAllocator.initialNumberOfChunks, poolAllocator.blockSize) {
     }
 
-    PoolAllocator(PoolAllocator&&) = delete;
+    ChainedBlockAllocator(ChainedBlockAllocator&&) = delete;
 
-    ~PoolAllocator() noexcept {
+    ~ChainedBlockAllocator() noexcept {
 #ifndef NDEBUG
-        std::cout << "PoolAllocator::~PoolAllocator()" << std::endl;
+        std::cout << "ChainedBlockAllocator::~ChainedBlockAllocator()" << std::endl;
 #endif
         memoryBlocks.clear();
         currentBlockOffsetPtr = nullptr;
     };
 
 
-    pointer allocate(size_type n, PoolAllocator<_T>::const_pointer hint=nullptr) {
+    pointer allocate(size_type n, ChainedBlockAllocator<_T>::const_pointer hint=nullptr) {
 #ifndef NDEBUG
-        std::cout << "PoolAllocator::allocate(" << n << ", " << hint << ")" << std::endl;
+        std::cout << "ChainedBlockAllocator::allocate(" << n << ", " << hint << ")" << std::endl;
 #endif
         assert(currentBlockOffsetPtr != nullptr);
 //        assert(currentBlockOffsetPtr <= memoryBlocks.front().get());
 
         if(currentBlockOffsetPtr+n > currentBlockIt->get() + blockSize) {
 #ifndef NDEBUG
-            std::cout << "PoolAllocator::allocate(): n=" << n << std::endl;
+            std::cout << "ChainedBlockAllocator::allocate(): n=" << n << std::endl;
 #endif
 
             // current block is too small
@@ -186,7 +189,7 @@ public:
 
     void deallocate(pointer p, size_type n) {
 #ifndef NDEBUG
-        std::cout << "PoolAllocator::deallocate(" << p << ", " << n << ")" << std::endl;
+        std::cout << "ChainedBlockAllocator::deallocate(" << p << ", " << n << ")" << std::endl;
 #endif
         // TODO: push back to memoryBlocks
     }
@@ -204,7 +207,7 @@ private:
     void allocateNewBlock(const std::size_t size=DEFAULT_BLOCK_SIZE) {
         assert(size%blockSize==0);
 #ifndef NDEBUG
-        std::cout << "PoolAllocator::allocateNewBlock(" << size << ")" << std::endl;
+        std::cout << "ChainedBlockAllocator::allocateNewBlock(" << size << ")" << std::endl;
 #endif
         memoryBlocks.emplace_front(new _T[size]);    // allocate new block
         currentBlockOffsetPtr = memoryBlocks.front().get();
