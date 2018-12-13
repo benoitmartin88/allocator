@@ -10,7 +10,7 @@ using namespace root88::memory;
 
 template <typename _T, template<typename> class _Allocator>
 static void benchStdVector(benchmark::State& state) {
-    static constexpr size_t SIZE = 100;
+    static constexpr size_t SIZE = 1000;
 
     for (auto _ : state) {
         auto v = std::vector<_T, _Allocator<_T>>();

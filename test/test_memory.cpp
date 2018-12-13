@@ -41,11 +41,21 @@ template <typename _T, template<typename> class _Allocator>
 void test_std_vector_bad_alloc() {
     static constexpr std::size_t SIZE = 8;
 
-    _Allocator<_T> allocator(SIZE-1);
-    auto v = std::vector<_T, _Allocator<_T>>(SIZE, 42, allocator);
-    for(auto val : v) {
-        ASSERT_EQ(42, val);
+    bool caughtException = false;
+    try {
+        _Allocator<_T> allocator(SIZE-1);
+        auto v = std::vector<_T, _Allocator<_T>>(SIZE, 42, allocator);
+        for(auto val : v) {
+            ASSERT_EQ(42, val);
+        }
+    } catch(const std::bad_alloc& e) {
+        // expected
+        std::cout << "Caught expected std::bad_alloc" << std::endl;
+        caughtException = true;
+    } catch(...) {
+        FAIL();
     }
+    ASSERT_TRUE(caughtException);
 }
 
 
@@ -62,17 +72,7 @@ TEST(linear_allocator, std_vector_emplace_back) {
 }
 
 TEST(linear_allocator, bad_alloc) {
-    bool caughtException = false;
-    try {
-        test_std_vector_bad_alloc<int, LinearAllocator>();
-    } catch(const std::bad_alloc& e) {
-        // expected
-        std::cout << "Caught expected std::bad_alloc" << std::endl;
-        caughtException = true;
-    } catch(...) {
-        FAIL();
-    }
-    ASSERT_TRUE(caughtException);
+    test_std_vector_bad_alloc<int, LinearAllocator>();
 }
 
 TEST(linear_allocator, new_placement) {
@@ -113,10 +113,3 @@ TEST(pool_allocator, std_vector_emplace_back) {
     test_std_vector_emplace_back<size_t, PoolAllocator>();
 }
 
-TEST(pool_allocator, bad_alloc) {
-    try {
-        test_std_vector_bad_alloc<int, PoolAllocator>();
-    } catch(...) {
-        FAIL();
-    }
-}

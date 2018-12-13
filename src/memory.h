@@ -204,7 +204,7 @@ private:
 
 
     void allocateNewBlock(const std::size_t size=DEFAULT_BLOCK_SIZE) {
-        assert(size%_BLOCK_SIZE==0);
+        assert(size%blockSize==0);
 #ifndef NDEBUG
         std::cout << "PoolAllocator::allocateNewBlock(" << size << ")" << std::endl;
 #endif
