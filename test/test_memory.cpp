@@ -5,7 +5,7 @@
 #include <vector>
 #include <new>
 
-#include "../src/memory.h"
+#include "../src/allocator.h"
 
 using namespace root88::memory;
 
@@ -17,6 +17,18 @@ void testStdVector() {
     auto v = std::vector<_T, _Allocator<_T>>(SIZE, 42);
     for(auto val : v) {
         ASSERT_EQ(42, val);
+    }
+}
+
+template <typename _T, template<typename> class _Allocator>
+void testStdVectorEmplace(const _T val) {
+    static constexpr uint8_t SIZE = 8;
+
+    auto v = std::vector<_T, _Allocator<_T>>();
+    for(size_t i=0; i<SIZE; ++i) {
+//            std::cout << "emplace_back i=" << i << std::endl;
+        v.emplace_back(val);
+        ASSERT_EQ(val, v.back());
     }
 }
 
@@ -60,7 +72,7 @@ void testStdVectorBadAlloc() {
 
 
 /*
- * LINEAR ALLOCATOR
+ * STATIC BLOCK ALLOCATOR
  */
 TEST(static_block_allocator, std_vector) {
     testStdVector<int, StaticBlockAllocator>();
@@ -100,12 +112,12 @@ TEST(static_block_allocator, new_placement) {
         ASSERT_EQ(ptr+i, intPtr+i);     // check pointer address
         ASSERT_EQ(i, *(intPtr+i));      // check value
     }
-    
+
     allocator.deallocate(ptr, SIZE);    // explicit call to deallocate due to new placement
 }
 
 /*
- * POOL ALLOCATOR
+ * CHAINED BLOCK ALLOCATOR
  */
 TEST(pool_allocator, std_vector) {
     testStdVector<int, ChainedBlockAllocator>();
@@ -116,3 +128,11 @@ TEST(pool_allocator, std_vector_emplace_back) {
     testStdVectorEmplaceBack<size_t, ChainedBlockAllocator>();
 }
 
+/*
+ * STATIC CHAINED BLOCK ALLOCATOR
+ */
+TEST(staticChainedBlockAllocator, std_vector) {
+//    testStdVector<int, StaticChainedBlockAllocator>();
+//    testStdVector<double, StaticChainedBlockAllocator>();
+    testStdVectorEmplace<unsigned char, StaticChainedBlockAllocator>('a');
+}
