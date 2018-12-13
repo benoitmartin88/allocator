@@ -18,7 +18,7 @@ namespace memory {
     static constexpr std::size_t DEFAULT_BLOCK_SIZE = 4096;
 
 
-template <typename _T, std::size_t _SIZE=DEFAULT_BLOCK_SIZE>
+template <typename _T>
 class LinearAllocator {
 public:
     typedef _T value_type;
@@ -29,11 +29,17 @@ public:
     typedef _T& reference;
     typedef const _T& const_reference;
 
-    LinearAllocator() : ptr(new _T[_SIZE]), offset(ptr.get()) {
+    LinearAllocator(const std::size_t size=DEFAULT_BLOCK_SIZE) : size(size), ptr(new _T[size]), offset(ptr.get())
+#ifndef NDEBUG
+            , debugAllocatedSize(0)
+#endif
+    {
+#ifndef NDEBUG
         std::cout << "LinearAllocator::LinearAllocator()" << std::endl;
+#endif
     }
 
-    LinearAllocator(const LinearAllocator& linearAllocator) : LinearAllocator() {
+    LinearAllocator(const LinearAllocator& linearAllocator) : LinearAllocator(linearAllocator.size) {
     }
 
     LinearAllocator(LinearAllocator&&) = delete;
@@ -43,19 +49,26 @@ public:
     };
 
 
-    pointer allocate(size_type n, LinearAllocator<_T, _SIZE>::const_pointer hint=nullptr) {
+    pointer allocate(size_type n, LinearAllocator<_T>::const_pointer hint=nullptr) {
+#ifndef NDEBUG
         std::cout << "LinearAllocator::allocate(" << n << ", " << hint << ")" << std::endl;
-        if(offset+n > ptr.get()+_SIZE) {
+#endif
+        if(offset+n > ptr.get()+size) {
             throw std::bad_alloc();
         }
 
         _T* p = offset;
         offset += n;
+#ifndef NDEBUG
+        debugAllocatedSize += n;
+#endif
         return p;
     }
 
     void deallocate(pointer p, size_type n) {
-        std::cout << "LinearAllocator::deallocate(" << p << ", " << n << ")" << std::endl;
+#ifndef NDEBUG
+        std::cout << "LinearAllocator::deallocate(" << p << ", " << n << "): debugAllocatedSize=" << debugAllocatedSize << std::endl;
+#endif
     }
 
 //    template <class U>
@@ -85,12 +98,16 @@ public:
 
 private:
     // TODO: check bench with https://en.cppreference.com/w/cpp/types/aligned_storage
+    const std::size_t size;
     std::unique_ptr<_T[]> ptr;
     _T* offset;
+#ifndef NDEBUG
+    uint64_t debugAllocatedSize;
+#endif
 };
 
 
-template <typename _T, std::size_t _BLOCK_SIZE=DEFAULT_BLOCK_SIZE>
+template <typename _T>
 class PoolAllocator {
 public:
     typedef _T value_type;
@@ -102,10 +119,13 @@ public:
     typedef const _T& const_reference;
 
 
-    PoolAllocator(const uint64_t initialNumberOfBlocks=2)
-            : memoryBlocks(initialNumberOfBlocks), currentBlockIt(memoryBlocks.before_begin()),
-            currentBlockOffsetPtr(nullptr), initialNumberOfChunks(initialNumberOfBlocks) {
-        std::cout << "PoolAllocator::PoolAllocator(" << initialNumberOfBlocks << ")" << std::endl;
+    PoolAllocator(const uint64_t initialNumberOfBlocks=2, const std::size_t blockSize=DEFAULT_BLOCK_SIZE)
+            : initialNumberOfChunks(initialNumberOfBlocks), blockSize(blockSize),
+            memoryBlocks(initialNumberOfBlocks), currentBlockIt(memoryBlocks.before_begin()),
+            currentBlockOffsetPtr(nullptr) {
+#ifndef NDEBUG
+        std::cout << "PoolAllocator::PoolAllocator(initialNumberOfBlocks=" << initialNumberOfBlocks << ")" << std::endl;
+#endif
 
         for(uint64_t i=0; i<initialNumberOfBlocks; ++i) {
             allocateNewBlock();
@@ -113,26 +133,32 @@ public:
         currentBlockIt = memoryBlocks.begin();
     }
 
-    PoolAllocator(const PoolAllocator& poolAllocator) : PoolAllocator(poolAllocator.initialNumberOfChunks) {
+    PoolAllocator(const PoolAllocator& poolAllocator) : PoolAllocator(poolAllocator.initialNumberOfChunks, poolAllocator.blockSize) {
     }
 
     PoolAllocator(PoolAllocator&&) = delete;
 
     ~PoolAllocator() noexcept {
+#ifndef NDEBUG
         std::cout << "PoolAllocator::~PoolAllocator()" << std::endl;
+#endif
         memoryBlocks.clear();
         currentBlockOffsetPtr = nullptr;
     };
 
 
-    pointer allocate(size_type n, PoolAllocator<_T, _BLOCK_SIZE>::const_pointer hint=nullptr) {
+    pointer allocate(size_type n, PoolAllocator<_T>::const_pointer hint=nullptr) {
+#ifndef NDEBUG
         std::cout << "PoolAllocator::allocate(" << n << ", " << hint << ")" << std::endl;
+#endif
         assert(currentBlockOffsetPtr != nullptr);
-        assert(currentBlockOffsetPtr <= memoryBlocks.front().get());
+//        assert(currentBlockOffsetPtr <= memoryBlocks.front().get());
 
-        if(currentBlockOffsetPtr+n > currentBlockIt->get() + _BLOCK_SIZE) {
+        if(currentBlockOffsetPtr+n > currentBlockIt->get() + blockSize) {
             // should not happen often. This will call new/malloc
+#ifndef NDEBUG
             std::cout << "PoolAllocator::allocate(): n=" << n << std::endl;
+#endif
 
             // current block is too small
             // either n is too big (n > _BLOCK_SIZE) -> allocate bigger block and use it
@@ -140,16 +166,16 @@ public:
             // or not -> allocate new block
 
             // try to use next block
-            if(currentBlockIt != memoryBlocks.end() and n <= _BLOCK_SIZE) {
+            if(currentBlockIt != memoryBlocks.end() and n <= blockSize) {
                 std::cout << "PoolAllocator::allocate(): next block" << std::endl;
                 ++currentBlockIt;   // next block
                 currentBlockOffsetPtr = currentBlockIt->get();
             } else {
                 // need a new block -> allocate
-                std::size_t size = _BLOCK_SIZE; // default size
-                if(n > _BLOCK_SIZE) {
+                std::size_t size = blockSize; // default size
+                if(n > blockSize) {
                     // need a bigger block
-                    size = _BLOCK_SIZE * static_cast<const std::size_t>(std::ceil(static_cast<float>(n)/_BLOCK_SIZE));
+                    size = blockSize * static_cast<const std::size_t>(std::ceil(static_cast<float>(n)/blockSize));
                 }
                 allocateNewBlock(size);
             }
@@ -161,27 +187,30 @@ public:
     }
 
     void deallocate(pointer p, size_type n) {
+#ifndef NDEBUG
         std::cout << "PoolAllocator::deallocate(" << p << ", " << n << ")" << std::endl;
+#endif
         // TODO
     }
 
 
 private:
     // TODO: check bench with https://en.cppreference.com/w/cpp/types/aligned_storage
-    std::forward_list<std::unique_ptr<_T[]>> memoryBlocks;
-    typename std::forward_list<std::unique_ptr<_T[]>>::iterator currentBlockIt;
-    _T* currentBlockOffsetPtr;
     const uint64_t initialNumberOfChunks;
+    const std::size_t blockSize;
+    std::forward_list<std::unique_ptr<_T[]>> memoryBlocks;  // forward chain for all blocks
+    typename std::forward_list<std::unique_ptr<_T[]>>::iterator currentBlockIt;     // iterator to current block
+    _T* currentBlockOffsetPtr;      // pointer to current block offset
 
 
-    void allocateNewBlock(const std::size_t size=_BLOCK_SIZE) {
+    void allocateNewBlock(const std::size_t size=DEFAULT_BLOCK_SIZE) {
         assert(size%_BLOCK_SIZE==0);
+#ifndef NDEBUG
         std::cout << "PoolAllocator::allocateNewBlock(" << size << ")" << std::endl;
+#endif
         memoryBlocks.emplace_front(new _T[size]);    // allocate new block
         currentBlockOffsetPtr = memoryBlocks.front().get();
     }
-
-
 };
 
 

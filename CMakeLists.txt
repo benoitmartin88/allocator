@@ -17,6 +17,6 @@ add_subdirectory(lib/gtest)
 add_subdirectory(test)
 
 # Benchmark
-#set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Suppressing benchmark's tests" FORCE)
-#add_subdirectory(lib/benchmark)
-#add_subdirectory(benchmark)
+set(BENCHMARK_ENABLE_TESTING OFF CACHE BOOL "Suppressing benchmark's tests" FORCE)
+add_subdirectory(lib/benchmark)
+add_subdirectory(benchmark)
