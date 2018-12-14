@@ -24,9 +24,9 @@ template <typename _T, template<typename> class _Allocator>
 void testStdVectorEmplace(const _T val) {
     static constexpr uint8_t SIZE = 8;
 
-    auto v = std::vector<_T, _Allocator<_T>>();
+    auto v = std::vector<_T, _Allocator<_T>>(SIZE);
     for(size_t i=0; i<SIZE; ++i) {
-//            std::cout << "emplace_back i=" << i << std::endl;
+        std::cout << "emplace_back i=" << i << std::endl;
         v.emplace_back(val);
         ASSERT_EQ(val, v.back());
     }
