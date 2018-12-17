@@ -241,7 +241,11 @@ public:
 //        init();
     }
 
-    StaticChainedBlockAllocator(const StaticChainedBlockAllocator&) : StaticChainedBlockAllocator() {
+//    StaticChainedBlockAllocator(const StaticChainedBlockAllocator& other) : StaticChainedBlockAllocator() {
+    StaticChainedBlockAllocator(const StaticChainedBlockAllocator& other) : blockListArray(other.blockListArray) {
+#ifndef NDEBUG
+        std::cout << "StaticChainedBlockAllocator::StaticChainedBlockAllocator(const StaticChainedBlockAllocator&)" << std::endl;
+#endif
     }
 
     StaticChainedBlockAllocator(StaticChainedBlockAllocator&&) = delete;
@@ -250,9 +254,9 @@ public:
 #ifndef NDEBUG
         std::cout << "StaticChainedBlockAllocator::~StaticChainedBlockAllocator()" << std::endl;
 #endif
-        for(blockListIndex_t i=0; i<BLOCK_LIST_SIZE; ++i) {
-            blockListArray[i].clear();
-        }
+//        for(blockListIndex_t i=0; i<BLOCK_LIST_SIZE; ++i) {
+//            blockListArray[i].clear();
+//        }
     };
 
 
@@ -294,18 +298,20 @@ private:
         blockListArray[index].emplace_front(new _T[blockSize]);
     }
 
-    blockListIndex_t indexFromBlockSize(size_t size) const noexcept {
+    inline blockListIndex_t indexFromBlockSize(size_t size) const noexcept {
         blockListIndex_t index=0;
         // size >> index
-        while(size >>= 1) {
-            index++;
-        }
+//        while(size >>= 1) {
+//            ++index;
+//        }
+
+        for(;size >>= 1; ++index);
 
         assert(index < BLOCK_LIST_SIZE);
         return index;
     }
 
-    size_t blockSizeFromIndex(const blockListIndex_t index) const noexcept {
+    inline size_t blockSizeFromIndex(const blockListIndex_t index) const noexcept {
 #ifndef NDEBUG
         std::cout << "StaticChainedBlockAllocator::blockSizeFromIndex(index=" << (unsigned)index << "): blockSize=" << (unsigned)((size_t)1 << index) << std::endl;
 #endif
@@ -321,7 +327,8 @@ private:
 
 
 private:
-    std::unique_ptr<BlockList[]> blockListArray;
+//    std::unique_ptr<BlockList[]> blockListArray;
+    BlockList* blockListArray;  // TODO
 };
 
 
