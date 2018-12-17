@@ -53,7 +53,7 @@ public:
 
     pointer allocate(size_type n, StaticBlockAllocator<_T>::const_pointer hint=nullptr) {
 #ifndef NDEBUG
-        std::cout << "StaticBlockAllocator::allocate(n=" << n << ", hint=" << hint << ")" << std::endl;
+        std::cout << "StaticBlockAllocator::allocate(n=" << n << ")" << std::endl;
 #endif
         if(offset+n > ptr.get()+size) {
             throw std::bad_alloc();
@@ -70,7 +70,7 @@ public:
     void deallocate(pointer p, size_type n) {
 #ifndef NDEBUG
         debugAllocatedSize -= n;
-        std::cout << "StaticBlockAllocator::deallocate(p=" << &p << ", n=" << n << "): debugAllocatedSize=" << debugAllocatedSize << std::endl;
+        std::cout << "StaticBlockAllocator::deallocate(p=" << p << ", n=" << n << "): debugAllocatedSize=" << debugAllocatedSize << std::endl;
 #endif
     }
 
@@ -152,7 +152,7 @@ public:
 
     pointer allocate(size_type n, ChainedBlockAllocator<_T>::const_pointer hint=nullptr) {
 #ifndef NDEBUG
-        std::cout << "ChainedBlockAllocator::allocate(" << n << ", " << hint << ")" << std::endl;
+        std::cout << "ChainedBlockAllocator::allocate(" << n << ")" << std::endl;
 #endif
         assert(currentBlockOffsetPtr != nullptr);
 //        assert(currentBlockOffsetPtr <= memoryBlocks.front().get());
@@ -189,7 +189,7 @@ public:
 
     void deallocate(pointer p, size_type n) {
 #ifndef NDEBUG
-        std::cout << "ChainedBlockAllocator::deallocate(" << &p << ", " << n << ")" << std::endl;
+        std::cout << "ChainedBlockAllocator::deallocate(" << p << ", " << n << ")" << std::endl;
 #endif
         // TODO: push back to memoryBlocks
     }
@@ -238,6 +238,7 @@ public:
         std::cout << "StaticChainedBlockAllocator::StaticChainedBlockAllocator()" << std::endl;
 #endif
 
+//        init();
     }
 
     StaticChainedBlockAllocator(const StaticChainedBlockAllocator&) : StaticChainedBlockAllocator() {
@@ -257,36 +258,35 @@ public:
 
     pointer allocate(size_type n, StaticChainedBlockAllocator<_T>::const_pointer hint=nullptr) {
 #ifndef NDEBUG
-        std::cout << "StaticChainedBlockAllocator::allocate(n=" << n << ", hint=" << &hint << ")" << std::endl;
+        std::cout << "StaticChainedBlockAllocator::allocate(n=" << n << ")" << std::endl;
 #endif
 
-        blockListIndex_t i = index(n);
-        auto& blockList = blockListArray[i];
+        blockListIndex_t index = indexFromBlockSize(n);
+        auto& blockList = blockListArray[index];
 
         if(blockList.empty()) {
-            allocateNewBlock(i, n);
+            allocateNewBlock(index, n);
         }
 
         _T* p = blockList.front().release();
         assert(nullptr != p);
         blockList.pop_front();
-        std::cout << ">>>>> p=" << &p << std::endl;
         return p;
     }
 
     void deallocate(pointer p, size_type n) {
 #ifndef NDEBUG
-        std::cout << "StaticChainedBlockAllocator::deallocate(" << &p << ", " << n << ")" << std::endl;
+        std::cout << "StaticChainedBlockAllocator::deallocate(" << static_cast<void*>(p) << ", " << n << ")" << std::endl;
 #endif
-        blockListIndex_t i = index(n);
-        size_t blockSize = blockSizeFromIndex(i); // TODO: check
-        blockListArray[i].emplace_front(new (p) _T[blockSize]);
+        blockListIndex_t index = indexFromBlockSize(n);
+        size_t blockSize = blockSizeFromIndex(index);
+        blockListArray[index].emplace_front(new (p) _T[blockSize]);
     }
 
 private:
-    void allocateNewBlock(blockListIndex_t index, size_t size) {
+    void allocateNewBlock(const blockListIndex_t index, const size_t size) {
         assert(index < BLOCK_LIST_SIZE);
-        size_t blockSize = blockSizeFromIndex(index);
+        const size_t blockSize = blockSizeFromIndex(index);
 #ifndef NDEBUG
         std::cout << "StaticChainedBlockAllocator::allocateNewBlock(size=" << size << "): blockSize=" << size << std::endl;
 #endif
@@ -294,15 +294,29 @@ private:
         blockListArray[index].emplace_front(new _T[blockSize]);
     }
 
-    blockListIndex_t index(const size_t size) noexcept {
-//        auto index = static_cast<blockListIndex_t >(size%BLOCK_LIST_SIZE);
-        blockListIndex_t index = 0;      // TODO
+    blockListIndex_t indexFromBlockSize(size_t size) const noexcept {
+        blockListIndex_t index=0;
+        // size >> index
+        while(size >>= 1) {
+            index++;
+        }
+
         assert(index < BLOCK_LIST_SIZE);
         return index;
     }
 
-    size_t blockSizeFromIndex(const blockListIndex_t index) {
-        return (size_t)1 << index;  // TODO: check this !
+    size_t blockSizeFromIndex(const blockListIndex_t index) const noexcept {
+#ifndef NDEBUG
+        std::cout << "StaticChainedBlockAllocator::blockSizeFromIndex(index=" << (unsigned)index << "): blockSize=" << (unsigned)((size_t)1 << index) << std::endl;
+#endif
+        return (size_t)1 << index;
+    }
+
+    void init(const blockListIndex_t maxIndex=BLOCK_LIST_SIZE/2) {
+        for(blockListIndex_t i=0; i<maxIndex; ++i) {
+            auto s = blockSizeFromIndex(i);
+            allocateNewBlock(i, s);
+        }
     }
 
 
