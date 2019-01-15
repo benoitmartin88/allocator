@@ -100,6 +100,36 @@ public:
         blockListArray[index].emplace_front(new (p) _T[blockSize]);
     }
 
+    template <typename _U>
+    struct rebind {
+        typedef ChainedBlockAllocator<_U> other;
+    };
+
+    void construct(pointer p, const_reference clone) {
+        new (p) _T(clone);
+    }
+
+    void destroy(pointer p) {
+        p->~_T();
+    }
+
+    pointer address(reference x) const {
+        return &x;
+    }
+
+    const_pointer address(const_reference x) const {
+        return &x;
+    }
+
+    bool operator==(const ChainedBlockAllocator &rhs) {
+        return blockListArray.get() == rhs.blockListArray.get();
+    }
+
+    bool operator!=(const ChainedBlockAllocator &rhs) {
+        return !operator==(rhs);
+    }
+
+
 private:
     void allocateNewBlock(const blockListIndex_t index) {
         assert(index < BLOCK_LIST_SIZE);
