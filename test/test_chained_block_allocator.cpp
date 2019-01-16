@@ -48,6 +48,19 @@ namespace memory {
             ASSERT_EQ(63, allocator.indexFromBlockSize(k*2-1));     // last element
         }
 
+        void testBlockSizeFromIndex() {
+
+            ASSERT_EQ(1, allocator.blockSizeFromIndex(0));
+            ASSERT_EQ(2, allocator.blockSizeFromIndex(1));
+            ASSERT_EQ(4, allocator.blockSizeFromIndex(2));
+
+            for(ChainedBlockAllocator<_T>::blockListIndex_t i=0; i<allocator.BLOCK_LIST_SIZE; ++i) {
+                ASSERT_EQ(size_t(1) << i, allocator.blockSizeFromIndex(i));
+            }
+
+            ASSERT_EQ(9223372036854775808u, allocator.blockSizeFromIndex(63));  // last element
+        }
+
     private:
         ChainedBlockAllocator<_T>& allocator;
     };
@@ -106,6 +119,7 @@ TEST(chained_block_allocator, private_methods) {
     typename ChainedBlockAllocator<char>::Test test(allocator);
 
     test.testIndexFromBlockSize();
+    test.testBlockSizeFromIndex();
 }
 
 // TODO test private methods: indexFromBlockSize, blockSizeFromIndex

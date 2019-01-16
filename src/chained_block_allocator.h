@@ -165,9 +165,9 @@ private:
 
     inline size_t blockSizeFromIndex(const blockListIndex_t index) const noexcept {
 #ifndef NDEBUG
-        std::cout << "ChainedBlockAllocator::blockSizeFromIndex(index=" << (unsigned)index << "): blockSize=" << (unsigned)((size_t)1 << index) << std::endl;
+        std::cout << "ChainedBlockAllocator::blockSizeFromIndex(index=" << (unsigned)index << "): blockSize=" << (size_t(1) << index) << std::endl;
 #endif
-        return (size_t)1 << index;
+        return size_t(1) << index;
     }
 
     void init(const blockListIndex_t maxIndex=BLOCK_LIST_SIZE/2) {
