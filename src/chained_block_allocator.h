@@ -52,12 +52,15 @@ public:
 //        init();
     }
 
-    ChainedBlockAllocator(const ChainedBlockAllocator&) : ChainedBlockAllocator() {
-//    ChainedBlockAllocator(const ChainedBlockAllocator& other) : blockListArray(other.blockListArray) {
+    ChainedBlockAllocator(const ChainedBlockAllocator& other) : ChainedBlockAllocator() {
 #ifndef NDEBUG
         std::cout << "ChainedBlockAllocator::ChainedBlockAllocator(const ChainedBlockAllocator&)" << std::endl;
 #endif
-        assert(false);  // TODO
+        for(blockListIndex_t i=0; i<BLOCK_LIST_SIZE; ++i) {
+            for(auto& val : other.blockListArray[i]) {
+                blockListArray[i].emplace_front(val.get());
+            }
+        }
     }
 
     ChainedBlockAllocator(ChainedBlockAllocator&&) = delete;

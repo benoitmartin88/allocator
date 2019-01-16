@@ -1,106 +1,59 @@
 #include <gtest/gtest.h>
 
 #include <memory>
-#include <iostream>
-#include <sstream>
-#include <vector>
 #include <new>
 
 #include "../src/chained_block_allocator.h"
 
-using namespace root88::memory;
+
+namespace root88 {
+namespace memory {
+namespace test {
+
+    template<typename _T, template<typename> class _Allocator>
+    void testCopyCtor() {
+        static constexpr uint8_t SIZE = 8;
+
+        _Allocator<_T> allocator1;
+        auto ptr = allocator1.allocate(SIZE);
+
+        for (uint8_t i = 0; i < SIZE; ++i) {
+            _T *valPtr = new(ptr + i)(_T);
+//        std::cout << "&valPtr=" << valPtr << std::endl;
+
+            *valPtr = i;    // set pointer value
+
+            ASSERT_EQ(ptr + i, valPtr);   // check pointer address
+            ASSERT_EQ(i, *valPtr);      // check value
+            ASSERT_EQ(i, *ptr + i);      // check value
+        }
 
 
-template <typename _T, template<typename> class _Allocator>
-void testStdVector() {
-    static constexpr uint8_t SIZE = 8;
 
-    auto v = std::vector<_T, _Allocator<_T>>(SIZE, 42);
-    for(auto val : v) {
-        ASSERT_EQ(42, val);
-    }
-}
+        // copy
+        _Allocator<_T> allocator2 = allocator1;
+        // TODO: check allocator internal memory using friend test class
 
-template <typename _T, template<typename> class _Allocator>
-static void testStdVectorEmplaceBack() {
-    static constexpr size_t SIZE = 100;
+//        std::cout << "test.allocator.indexFromBlockSize(SIZE)=" << test.allocator.indexFromBlockSize(SIZE) << std::endl;
 
-    auto v = std::vector<_T, _Allocator<_T>>();
-    for(size_t i=0; i<SIZE; ++i) {
-        v.emplace_back(i);
-        ASSERT_EQ(i, v.back());
-    }
-
-    for(size_t i=0; i<SIZE; ++i) {
-        ASSERT_EQ(i, v.at(i));
-    }
-
-    ASSERT_EQ(SIZE, v.size());
-}
-
-//template <typename _T, template<typename> class _Allocator>
-//void testStdVectorBadAlloc() {
-//    static constexpr std::size_t SIZE = 8;
-//
-//    bool caughtException = false;
-//    try {
-//        _Allocator<_T> allocator(SIZE-1);
-//        auto v = std::vector<_T, _Allocator<_T>>(SIZE, 42, allocator);
-//        for(auto val : v) {
-//            ASSERT_EQ(42, val);
-//        }
-//    } catch(const std::bad_alloc& e) {
-//        // expected
-//        std::cout << "Caught expected std::bad_alloc" << std::endl;
-//        caughtException = true;
-//    } catch(...) {
-//        FAIL();
+//    for(uint8_t i=0; i<SIZE; ++i) {
+//        ASSERT_EQ(ptr+i, test.allocator.blockListArray[test.allocator.indexFromBlockSize(SIZE)]);   // check pointer address
+////        ASSERT_EQ(i, *intPtr);      // check value
+////        ASSERT_EQ(i, *ptr+i);      // check value
 //    }
-//    ASSERT_TRUE(caughtException);
-//}
-
-
-/*
- * CHAINED BLOCK ALLOCATOR
- */
-TEST(chained_block_allocator, std_vector) {
-    testStdVector<unsigned char, ChainedBlockAllocator>();
-    testStdVector<int, ChainedBlockAllocator>();
-    testStdVector<double, ChainedBlockAllocator>();
-}
-
-TEST(chained_block_allocator, std_vector_emplace_back) {
-    testStdVectorEmplaceBack<unsigned char, ChainedBlockAllocator>();
-    testStdVectorEmplaceBack<int, ChainedBlockAllocator>();
-    testStdVectorEmplaceBack<double, ChainedBlockAllocator>();
-}
-
-TEST(chained_block_allocator, new_placement) {
-    static constexpr uint8_t SIZE = 8;
-
-    ChainedBlockAllocator<int> allocator;  // 8 * sizeof(int)
-    auto ptr = allocator.allocate(SIZE);
-    ASSERT_TRUE(nullptr != ptr);
-//    std::cout << "&ptr=" << ptr << std::endl;
-
-    for(uint8_t i=0; i<SIZE; ++i) {
-        int* intPtr = new(ptr+i)(int);
-//        std::cout << "&intPtr=" << intPtr << std::endl;
-
-        *intPtr = i;    // set pointer value
-
-        ASSERT_EQ(ptr+i, intPtr);   // check pointer address
-        ASSERT_EQ(i, *intPtr);      // check value
-        ASSERT_EQ(i, *ptr+i);      // check value
     }
 
-    int* intPtr = new(ptr)(int[SIZE]);
-    for(uint8_t i=0; i<SIZE; ++i) {
-        *(intPtr+i) = i;    // set pointer value
-//        std::cout << "*intPtr=" << *(intPtr+i) << std::endl;
-        ASSERT_EQ(ptr+i, intPtr+i);     // check pointer address
-        ASSERT_EQ(i, *(intPtr+i));      // check value
-    }
+}   // namespace test
+}   // namespace memory
+}   // namespace root88
 
-    allocator.deallocate(ptr, SIZE);    // explicit call to deallocate due to new placement
+
+using namespace root88::memory;
+using namespace root88::memory::test;
+
+
+TEST(chained_block_allocator, copy_ctor) {
+    testCopyCtor<unsigned char, ChainedBlockAllocator>();
 }
+
+// TODO test private methods: indexFromBlockSize, blockSizeFromIndex

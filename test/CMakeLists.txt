@@ -7,4 +7,5 @@ function(add_test_helper test_name source_file)
     add_test(NAME ${TARGET_NAME} COMMAND ${TARGET_NAME})
 endfunction()
 
+add_test_helper(stl_compliance test_stl_compliance.cpp)
 add_test_helper(memory test_chained_block_allocator.cpp)
