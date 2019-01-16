@@ -8,6 +8,50 @@
 
 namespace root88 {
 namespace memory {
+
+    template<typename _T>
+    class ChainedBlockAllocator<_T>::Test {
+    public:
+        Test(ChainedBlockAllocator<_T>& allocator) : allocator(allocator) {
+        }
+
+        void testIndexFromBlockSize() {
+            ASSERT_EQ(0, allocator.indexFromBlockSize(1));
+
+            ASSERT_EQ(1, allocator.indexFromBlockSize(2));
+            ASSERT_EQ(1, allocator.indexFromBlockSize(3));
+
+            ASSERT_EQ(2, allocator.indexFromBlockSize(4));
+            ASSERT_EQ(2, allocator.indexFromBlockSize(5));
+            ASSERT_EQ(2, allocator.indexFromBlockSize(6));
+            ASSERT_EQ(2, allocator.indexFromBlockSize(7));
+
+            ASSERT_EQ(3, allocator.indexFromBlockSize(8));
+            ASSERT_EQ(3, allocator.indexFromBlockSize(9));
+            ASSERT_EQ(3, allocator.indexFromBlockSize(10));
+            ASSERT_EQ(3, allocator.indexFromBlockSize(11));
+            ASSERT_EQ(3, allocator.indexFromBlockSize(12));
+            ASSERT_EQ(3, allocator.indexFromBlockSize(13));
+            ASSERT_EQ(3, allocator.indexFromBlockSize(14));
+            ASSERT_EQ(3, allocator.indexFromBlockSize(15));
+
+
+            for(size_t i=4; i<16; ++i) {
+                for(size_t j=(size_t(1)<<i); j<(size_t(1)<<(i+1)); ++j) {
+                    ASSERT_EQ(i, allocator.indexFromBlockSize(j));
+                }
+            }
+
+            // Compute intensive, skip from 17 to 62.
+
+            size_t k = size_t(1)<<63;
+            ASSERT_EQ(63, allocator.indexFromBlockSize(k*2-1));     // last element
+        }
+
+    private:
+        ChainedBlockAllocator<_T>& allocator;
+    };
+
 namespace test {
 
     template<typename _T, template<typename> class _Allocator>
@@ -34,7 +78,8 @@ namespace test {
         _Allocator<_T> allocator2 = allocator1;
         // TODO: check allocator internal memory using friend test class
 
-//        std::cout << "test.allocator.indexFromBlockSize(SIZE)=" << test.allocator.indexFromBlockSize(SIZE) << std::endl;
+//        typename ChainedBlockAllocator<_T>::Test test(allocator2);
+//        test.testIndexFromBlockSize();
 
 //    for(uint8_t i=0; i<SIZE; ++i) {
 //        ASSERT_EQ(ptr+i, test.allocator.blockListArray[test.allocator.indexFromBlockSize(SIZE)]);   // check pointer address
@@ -54,6 +99,13 @@ using namespace root88::memory::test;
 
 TEST(chained_block_allocator, copy_ctor) {
     testCopyCtor<unsigned char, ChainedBlockAllocator>();
+}
+
+TEST(chained_block_allocator, private_methods) {
+    ChainedBlockAllocator<char> allocator;
+    typename ChainedBlockAllocator<char>::Test test(allocator);
+
+    test.testIndexFromBlockSize();
 }
 
 // TODO test private methods: indexFromBlockSize, blockSizeFromIndex

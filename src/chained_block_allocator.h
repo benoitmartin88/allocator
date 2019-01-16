@@ -36,6 +36,7 @@ private:
     static constexpr blockListIndex_t BLOCK_LIST_SIZE = 64;
 
 public:
+    class Test;
     typedef _T value_type;
     typedef size_t size_type;
     typedef ptrdiff_t difference_type;
@@ -144,6 +145,11 @@ private:
         blockListArray[index].emplace_front(new _T[blockSize]);
     }
 
+    /**
+     * Return an index to the inner blockListArray. Value will be between 0 and BLOCK_LIST_SIZE-1
+     * @param size block size
+     * @return index
+     */
     inline blockListIndex_t indexFromBlockSize(size_t size) const noexcept {
         blockListIndex_t index=0;
         // size >> index
