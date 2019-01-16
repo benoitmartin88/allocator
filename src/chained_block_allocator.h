@@ -52,12 +52,15 @@ public:
 //        init();
     }
 
-    ChainedBlockAllocator(const ChainedBlockAllocator&) : ChainedBlockAllocator() {
-//    ChainedBlockAllocator(const ChainedBlockAllocator& other) : blockListArray(other.blockListArray) {
+    ChainedBlockAllocator(const ChainedBlockAllocator& other) : ChainedBlockAllocator() {
 #ifndef NDEBUG
         std::cout << "ChainedBlockAllocator::ChainedBlockAllocator(const ChainedBlockAllocator&)" << std::endl;
 #endif
-        assert(false);  // TODO
+        for(blockListIndex_t i=0; i<BLOCK_LIST_SIZE; ++i) {
+            for(auto& val : other.blockListArray[i]) {
+                blockListArray[i].emplace_front(val.get());
+            }
+        }
     }
 
     ChainedBlockAllocator(ChainedBlockAllocator&&) = delete;
@@ -99,6 +102,36 @@ public:
         size_t blockSize = blockSizeFromIndex(index);
         blockListArray[index].emplace_front(new (p) _T[blockSize]);
     }
+
+    template <typename _U>
+    struct rebind {
+        typedef ChainedBlockAllocator<_U> other;
+    };
+
+    void construct(pointer p, const_reference clone) {
+        new (p) _T(clone);
+    }
+
+    void destroy(pointer p) {
+        p->~_T();
+    }
+
+    pointer address(reference x) const {
+        return &x;
+    }
+
+    const_pointer address(const_reference x) const {
+        return &x;
+    }
+
+    bool operator==(const ChainedBlockAllocator &rhs) {
+        return blockListArray.get() == rhs.blockListArray.get();
+    }
+
+    bool operator!=(const ChainedBlockAllocator &rhs) {
+        return !operator==(rhs);
+    }
+
 
 private:
     void allocateNewBlock(const blockListIndex_t index) {
