@@ -46,7 +46,7 @@ public:
     typedef const _T& const_reference;
 
 
-    ChainedBlockAllocator() : blockListArray(new BlockList[BLOCK_LIST_SIZE]) {
+    ChainedBlockAllocator() : unallocatedBlockListArray(new BlockList[BLOCK_LIST_SIZE]) {
 #ifndef NDEBUG
         std::cout << "ChainedBlockAllocator::ChainedBlockAllocator()" << std::endl;
 #endif
@@ -64,7 +64,7 @@ public:
         std::cout << "ChainedBlockAllocator::ChainedBlockAllocator(const ChainedBlockAllocator&)" << std::endl;
 #endif
         for(blockListIndex_t i=0; i<BLOCK_LIST_SIZE; ++i) {
-            auto nbBlocks = std::distance(other.blockListArray[i].begin(), other.blockListArray[i].end());
+            auto nbBlocks = std::distance(other.unallocatedBlockListArray[i].begin(), other.unallocatedBlockListArray[i].end());
             for(; nbBlocks>0; --nbBlocks, allocateNewBlock(i));
         }
     }
@@ -76,7 +76,7 @@ public:
         std::cout << "ChainedBlockAllocator::~ChainedBlockAllocator()" << std::endl;
 #endif
 //        for(blockListIndex_t i=0; i<BLOCK_LIST_SIZE; ++i) {
-//            blockListArray[i].clear();
+//            unallocatedBlockListArray[i].clear();
 //        }
     };
 
@@ -87,7 +87,7 @@ public:
 #endif
 
         blockListIndex_t index = indexFromBlockSize(n);
-        auto& blockList = blockListArray[index];
+        auto& blockList = unallocatedBlockListArray[index];
 
         if(blockList.empty()) {
             allocateNewBlock(index);
@@ -106,7 +106,7 @@ public:
 #endif
         blockListIndex_t index = indexFromBlockSize(n);
         size_t blockSize = blockSizeFromIndex(index);
-        blockListArray[index].emplace_front(new (p) _T[blockSize]);
+        unallocatedBlockListArray[index].emplace_front(new (p) _T[blockSize]);
     }
 
     template <typename _U>
@@ -131,7 +131,7 @@ public:
     }
 
     bool operator==(const ChainedBlockAllocator &rhs) {
-        return blockListArray.get() == rhs.blockListArray.get();
+        return unallocatedBlockListArray.get() == rhs.unallocatedBlockListArray.get();
     }
 
     bool operator!=(const ChainedBlockAllocator &rhs) {
@@ -147,7 +147,7 @@ private:
         std::cout << "ChainedBlockAllocator::allocateNewBlock(index=" << unsigned(index) << "): blockSize=" << blockSize << std::endl;
 #endif
 
-        blockListArray[index].emplace_front(new _T[blockSize]);
+        unallocatedBlockListArray[index].emplace_front(new _T[blockSize]);
     }
 
     /**
@@ -183,7 +183,7 @@ private:
 
 
 private:
-    std::unique_ptr<BlockList[]> blockListArray;
+    std::unique_ptr<BlockList[]> unallocatedBlockListArray;
 };
 
 }   // namespace allocator

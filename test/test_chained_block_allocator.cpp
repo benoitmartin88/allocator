@@ -63,8 +63,8 @@ namespace memory {
 
         void testEquality(const ChainedBlockAllocator<_T>& other) {
             for(ChainedBlockAllocator<_T>::blockListIndex_t i=0; i<ChainedBlockAllocator<_T>::BLOCK_LIST_SIZE; ++i) {
-                ASSERT_TRUE(std::distance(allocator.blockListArray[i].begin(), allocator.blockListArray[i].end())
-                    == std::distance(other.blockListArray[i].begin(), other.blockListArray[i].end()));
+                ASSERT_TRUE(std::distance(allocator.unallocatedBlockListArray[i].begin(), allocator.unallocatedBlockListArray[i].end())
+                    == std::distance(other.unallocatedBlockListArray[i].begin(), other.unallocatedBlockListArray[i].end()));
             }
         }
 
