@@ -77,6 +77,22 @@ namespace memory {
 
 namespace test {
 
+    void testMemoryRecycling() {
+        ChainedBlockAllocator<unsigned char> allocator;
+
+        // allocate arbitrary sizes
+        for(size_t s=1; s<=12345; ++s) {
+            auto p1 = allocator.allocate(s);
+            allocator.deallocate(p1, s);
+
+            auto p2 = allocator.allocate(s);
+            allocator.deallocate(p2, s);
+
+            ASSERT_EQ(p1, p2);
+        }
+
+    }
+
 }   // namespace test
 }   // namespace memory
 }   // namespace root88
@@ -85,6 +101,10 @@ namespace test {
 using namespace root88::memory;
 using namespace root88::memory::test;
 
+
+TEST(chained_block_allocator, memory_recycling) {
+    testMemoryRecycling();
+}
 
 TEST(chained_block_allocator, private_methods) {
     ChainedBlockAllocator<char> allocator;
