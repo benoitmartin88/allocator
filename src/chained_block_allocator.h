@@ -6,12 +6,12 @@
 #define MEMORY_CHAINED_BLOCK_ALLOCATOR_H
 
 #include <memory>
-#include <stdlib.h>
 #include <cassert>
 #include <forward_list>
-#include <iostream>     // TODO remove
-#include <cmath>
 
+#ifndef NDEBUG
+#include <iostream>
+#endif
 
 namespace root88 {
 namespace memory {
@@ -81,7 +81,7 @@ public:
     };
 
 
-    pointer allocate(size_type n, ChainedBlockAllocator<_T>::const_pointer hint=nullptr) {
+    pointer allocate(size_type n, __attribute__((unused)) const_pointer hint=nullptr) {
 #ifndef NDEBUG
         std::cout << "ChainedBlockAllocator::allocate(n=" << n << ")" << std::endl;
 #endif
