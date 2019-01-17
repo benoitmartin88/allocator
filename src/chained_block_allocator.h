@@ -53,14 +53,19 @@ public:
 //        init();
     }
 
+    /**
+     * Copy constructor.
+     * The resulting instance will have the same number of allocated blocks.
+     * Allocated values are not copied.
+     * @param other allocator from which the structure will be copied.
+     */
     ChainedBlockAllocator(const ChainedBlockAllocator& other) : ChainedBlockAllocator() {
 #ifndef NDEBUG
         std::cout << "ChainedBlockAllocator::ChainedBlockAllocator(const ChainedBlockAllocator&)" << std::endl;
 #endif
         for(blockListIndex_t i=0; i<BLOCK_LIST_SIZE; ++i) {
-            for(auto& val : other.blockListArray[i]) {
-                blockListArray[i].emplace_front(val.get());
-            }
+            auto nbBlocks = std::distance(other.blockListArray[i].begin(), other.blockListArray[i].end());
+            for(; nbBlocks>0; --nbBlocks, allocateNewBlock(i));
         }
     }
 

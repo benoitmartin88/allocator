@@ -61,45 +61,21 @@ namespace memory {
             ASSERT_EQ(9223372036854775808u, allocator.blockSizeFromIndex(63));  // last element
         }
 
+        void testEquality(const ChainedBlockAllocator<_T>& other) {
+            for(ChainedBlockAllocator<_T>::blockListIndex_t i=0; i<ChainedBlockAllocator<_T>::BLOCK_LIST_SIZE; ++i) {
+                ASSERT_TRUE(std::distance(allocator.blockListArray[i].begin(), allocator.blockListArray[i].end())
+                    == std::distance(other.blockListArray[i].begin(), other.blockListArray[i].end()));
+            }
+        }
+
     private:
         ChainedBlockAllocator<_T>& allocator;
     };
 
+    template<typename _T>
+    using ChainedBlockAllocatorTest = typename ChainedBlockAllocator<_T>::Test;
+
 namespace test {
-
-    template<typename _T, template<typename> class _Allocator>
-    void testCopyCtor() {
-        static constexpr uint8_t SIZE = 8;
-
-        _Allocator<_T> allocator1;
-        auto ptr = allocator1.allocate(SIZE);
-
-        for (uint8_t i = 0; i < SIZE; ++i) {
-            _T *valPtr = new(ptr + i)(_T);
-//        std::cout << "&valPtr=" << valPtr << std::endl;
-
-            *valPtr = i;    // set pointer value
-
-            ASSERT_EQ(ptr + i, valPtr);   // check pointer address
-            ASSERT_EQ(i, *valPtr);      // check value
-            ASSERT_EQ(i, *ptr + i);      // check value
-        }
-
-
-
-        // copy
-        _Allocator<_T> allocator2 = allocator1;
-        // TODO: check allocator internal memory using friend test class
-
-//        typename ChainedBlockAllocator<_T>::Test test(allocator2);
-//        test.testIndexFromBlockSize();
-
-//    for(uint8_t i=0; i<SIZE; ++i) {
-//        ASSERT_EQ(ptr+i, test.allocator.blockListArray[test.allocator.indexFromBlockSize(SIZE)]);   // check pointer address
-////        ASSERT_EQ(i, *intPtr);      // check value
-////        ASSERT_EQ(i, *ptr+i);      // check value
-//    }
-    }
 
 }   // namespace test
 }   // namespace memory
@@ -110,16 +86,22 @@ using namespace root88::memory;
 using namespace root88::memory::test;
 
 
-TEST(chained_block_allocator, copy_ctor) {
-    testCopyCtor<unsigned char, ChainedBlockAllocator>();
-}
-
 TEST(chained_block_allocator, private_methods) {
     ChainedBlockAllocator<char> allocator;
-    typename ChainedBlockAllocator<char>::Test test(allocator);
+    ChainedBlockAllocatorTest<char> test(allocator);
+
+    // allocate arbitrary size
+    for(size_t s=1; s<12345; ++s) {
+        auto p = allocator.allocate(s);
+        allocator.deallocate(p, s);
+    }
+
+    // copy allocator
+    ChainedBlockAllocator<char> allocatorCpy(allocator);
 
     test.testIndexFromBlockSize();
     test.testBlockSizeFromIndex();
+    test.testEquality(allocatorCpy);
 }
 
 // TODO test private methods: indexFromBlockSize, blockSizeFromIndex
