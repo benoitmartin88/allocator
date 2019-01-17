@@ -6,12 +6,12 @@
 #define MEMORY_CHAINED_BLOCK_ALLOCATOR_H
 
 #include <memory>
-#include <stdlib.h>
 #include <cassert>
 #include <forward_list>
-#include <iostream>     // TODO remove
-#include <cmath>
 
+#ifndef NDEBUG
+#include <iostream>
+#endif
 
 namespace root88 {
 namespace memory {
@@ -36,6 +36,7 @@ private:
     static constexpr blockListIndex_t BLOCK_LIST_SIZE = 64;
 
 public:
+    class Test;
     typedef _T value_type;
     typedef size_t size_type;
     typedef ptrdiff_t difference_type;
@@ -45,21 +46,26 @@ public:
     typedef const _T& const_reference;
 
 
-    ChainedBlockAllocator() : blockListArray(new BlockList[BLOCK_LIST_SIZE]) {
+    ChainedBlockAllocator() : unallocatedBlockListArray(new BlockList[BLOCK_LIST_SIZE]) {
 #ifndef NDEBUG
         std::cout << "ChainedBlockAllocator::ChainedBlockAllocator()" << std::endl;
 #endif
 //        init();
     }
 
+    /**
+     * Copy constructor.
+     * The resulting instance will have the same number of allocated blocks.
+     * Allocated values are not copied.
+     * @param other allocator from which the structure will be copied.
+     */
     ChainedBlockAllocator(const ChainedBlockAllocator& other) : ChainedBlockAllocator() {
 #ifndef NDEBUG
         std::cout << "ChainedBlockAllocator::ChainedBlockAllocator(const ChainedBlockAllocator&)" << std::endl;
 #endif
         for(blockListIndex_t i=0; i<BLOCK_LIST_SIZE; ++i) {
-            for(auto& val : other.blockListArray[i]) {
-                blockListArray[i].emplace_front(val.get());
-            }
+            auto nbBlocks = std::distance(other.unallocatedBlockListArray[i].begin(), other.unallocatedBlockListArray[i].end());
+            for(; nbBlocks>0; --nbBlocks, allocateNewBlock(i));
         }
     }
 
@@ -70,18 +76,18 @@ public:
         std::cout << "ChainedBlockAllocator::~ChainedBlockAllocator()" << std::endl;
 #endif
 //        for(blockListIndex_t i=0; i<BLOCK_LIST_SIZE; ++i) {
-//            blockListArray[i].clear();
+//            unallocatedBlockListArray[i].clear();
 //        }
     };
 
 
-    pointer allocate(size_type n, ChainedBlockAllocator<_T>::const_pointer hint=nullptr) {
+    pointer allocate(size_type n, __attribute__((unused)) const_pointer hint=nullptr) {
 #ifndef NDEBUG
         std::cout << "ChainedBlockAllocator::allocate(n=" << n << ")" << std::endl;
 #endif
 
         blockListIndex_t index = indexFromBlockSize(n);
-        auto& blockList = blockListArray[index];
+        auto& blockList = unallocatedBlockListArray[index];
 
         if(blockList.empty()) {
             allocateNewBlock(index);
@@ -100,7 +106,7 @@ public:
 #endif
         blockListIndex_t index = indexFromBlockSize(n);
         size_t blockSize = blockSizeFromIndex(index);
-        blockListArray[index].emplace_front(new (p) _T[blockSize]);
+        unallocatedBlockListArray[index].emplace_front(new (p) _T[blockSize]);
     }
 
     template <typename _U>
@@ -125,7 +131,7 @@ public:
     }
 
     bool operator==(const ChainedBlockAllocator &rhs) {
-        return blockListArray.get() == rhs.blockListArray.get();
+        return unallocatedBlockListArray.get() == rhs.unallocatedBlockListArray.get();
     }
 
     bool operator!=(const ChainedBlockAllocator &rhs) {
@@ -141,9 +147,14 @@ private:
         std::cout << "ChainedBlockAllocator::allocateNewBlock(index=" << unsigned(index) << "): blockSize=" << blockSize << std::endl;
 #endif
 
-        blockListArray[index].emplace_front(new _T[blockSize]);
+        unallocatedBlockListArray[index].emplace_front(new _T[blockSize]);
     }
 
+    /**
+     * Return an index to the inner blockListArray. Value will be between 0 and BLOCK_LIST_SIZE-1
+     * @param size block size
+     * @return index
+     */
     inline blockListIndex_t indexFromBlockSize(size_t size) const noexcept {
         blockListIndex_t index=0;
         // size >> index
@@ -159,9 +170,9 @@ private:
 
     inline size_t blockSizeFromIndex(const blockListIndex_t index) const noexcept {
 #ifndef NDEBUG
-        std::cout << "ChainedBlockAllocator::blockSizeFromIndex(index=" << (unsigned)index << "): blockSize=" << (unsigned)((size_t)1 << index) << std::endl;
+        std::cout << "ChainedBlockAllocator::blockSizeFromIndex(index=" << (unsigned)index << "): blockSize=" << (size_t(1) << index) << std::endl;
 #endif
-        return (size_t)1 << index;
+        return size_t(1) << index;
     }
 
     void init(const blockListIndex_t maxIndex=BLOCK_LIST_SIZE/2) {
@@ -172,7 +183,7 @@ private:
 
 
 private:
-    std::unique_ptr<BlockList[]> blockListArray;
+    std::unique_ptr<BlockList[]> unallocatedBlockListArray;
 };
 
 }   // namespace allocator
